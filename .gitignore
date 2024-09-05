@@ -1,0 +1,14 @@
+
+# cli helpers
+cli-helpers.sh
+# IDE
+.idea/
+
+# terrafrm
+*.terraform.lock.hcl
+**/.terraform/*
+**/.terraform.*
+.terraform/
+
+# dependency builds
+instances/**/builds
