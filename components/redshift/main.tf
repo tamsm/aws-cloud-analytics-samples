@@ -26,6 +26,14 @@ resource "aws_redshiftserverless_workgroup" "serverless" {
   tags = merge( var.tags, {name = "${var.tags.name}-workgroup"})
 }
 
+resource "aws_redshiftserverless_endpoint_access" "serverless" {
+  workgroup_name = aws_redshiftserverless_workgroup.serverless.workgroup_name
+  endpoint_name  = "${var.tags.name}-main"   # Customize the endpoint name
+  subnet_ids = var.vpc_subnet_ids
+  vpc_security_group_ids = [aws_security_group.redshift_client.id]
+}
+
+
 # Create an IAM Role for Redshift
 resource "aws_iam_role" "redshift-serverless-role" {
   name = "${var.app_name}-${var.app_environment}-redshift-serverless-role"

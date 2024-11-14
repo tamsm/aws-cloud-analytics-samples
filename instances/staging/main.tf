@@ -55,3 +55,19 @@ module "redshift" {
   tags = local.tags
 }
 
+module "bastion_host" {
+  source     = "../../components/bastion-host"
+  instance_type = "t4g.micro"
+  ubuntu_version = "24.04"
+  vpc_id     = module.vpc.vpc_id
+  subnet_ids = module.vpc.public_subnets
+  #
+  users                         = []
+  # list of additional sg's: [airflow, etc.]
+  additional_security_group_ids = []
+  # list incoming tunnel IP's below
+  source_ip_cidrs               = []
+  tags                          = merge(
+    local.tags, { Terraform = "true" }
+  )
+}

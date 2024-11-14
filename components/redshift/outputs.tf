@@ -41,3 +41,13 @@ output "aws_redshiftserverless_client_sg_arn" {
   description = "ARN of the Redshift Serverless Workgroup."
   value       = try(aws_security_group.redshift_client.arn, null)
 }
+
+output "aws_redshiftserverless_server_sg" {
+  description = "Id of the Redshift Serverless Workgroup."
+  value       = try(aws_security_group.redshift_server.id, null)
+}
+
+# Output the Redshift Serverless endpoint
+output "redshift_serverless_endpoint" {
+  value = aws_redshiftserverless_endpoint_access.serverless.endpoint_name
+}
