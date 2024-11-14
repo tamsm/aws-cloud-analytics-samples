@@ -1,0 +1,35 @@
+#cloud-config
+
+# package_upgrade: true
+# https://cloudinit.readthedocs.io/en/latest/reference/modules.html#cc_apt_configure
+packages:
+  - awscli
+  - curl
+  - unattended-upgrades
+  %{ for package in packages ~}
+- ${package}
+  %{ endfor ~}
+# https://cloudinit.readthedocs.io/en/latest/reference/modules.html#write_files
+write_files:
+  - path: /etc/ssh/sshd_config
+    content: |
+      PubkeyAcceptedAlgorithms +ssh-rsa
+    append: true
+
+runcmd:
+  - echo Starting runcmd..
+  %{ for runcmd in runcmds ~}
+- ${runcmd}
+  %{ endfor ~}
+# https://cloudinit.readthedocs.io/en/latest/reference/modules.html#users
+users:
+  - default
+  %{ for user in users ~}
+- name: ${user.name}
+  shell: ${user.shell}
+  ssh_authorized_keys:
+  %{ for key in user.ssh_authorized_keys ~}
+- ${key}
+  %{ endfor ~}
+  
+  %{ endfor ~}
