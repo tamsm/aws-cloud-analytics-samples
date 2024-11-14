@@ -18,3 +18,11 @@ host i-*
  User ubuntu
  ProxyCommand sh -c "aws ec2-instance-connect send-ssh-public-key --instance-id %h --instance-os-user %r --ssh-public-key 'file://~/.ssh/<your-key>.pub' --availability-zone '$(aws ec2 describe-instances --instance-ids %h --query 'Reservations[0].Instances[0].Placement.AvailabilityZone' --output text)' && aws ssm start-session --target %h --document-name AWS-StartSSHSession --parameters 'portNumber=%p'"
 ```
+Once the resources have been applied, you can either ssh into the host, or alternatively forward the database host to your localhost.   
+```shell
+ssh i-<instance-id>
+# use psql client
+psql -h <host-address> -U admin -d dw -p 5439
+# forward the remote redshift port to your local (5439) 
+ssh -L 5439:$(aws redshift-serverless  list-workgroups  | jq '.workgroup[0].endpoint.address' --raw-output):5439 $(aws ec2 describe-instances --query "Reservations[*].Instances[*].InstanceId" | jq '.[0][0]' --raw-output)
+```

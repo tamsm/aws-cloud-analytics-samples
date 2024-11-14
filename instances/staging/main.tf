@@ -63,8 +63,8 @@ module "bastion_host" {
   subnet_ids = module.vpc.public_subnets
   #
   users                         = []
-  # list of additional sg's: [airflow, etc.]
-  additional_security_group_ids = []
+  # list of additional sg's: [redshift, airflow, etc.]
+  additional_security_group_ids = [module.redshift.aws_redshiftserverless_server_sg]
   # list incoming tunnel IP's below
   source_ip_cidrs               = []
   tags                          = merge(

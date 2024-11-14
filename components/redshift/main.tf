@@ -18,7 +18,8 @@ resource "aws_redshiftserverless_workgroup" "serverless" {
   namespace_name = aws_redshiftserverless_namespace.serverless.id
   workgroup_name = var.redshift_serverless_workgroup_name
   base_capacity  = var.redshift_serverless_base_capacity
-#  port           = 5439
+  enhanced_vpc_routing = true
+  port           = 5439
   security_group_ids  = [aws_security_group.redshift_server.id]
   subnet_ids          = var.vpc_subnet_ids
   publicly_accessible = var.redshift_serverless_publicly_accessible

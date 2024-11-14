@@ -5,6 +5,7 @@
 packages:
   - awscli
   - curl
+  - postgresql-client
   - unattended-upgrades
   %{ for package in packages ~}
 - ${package}
