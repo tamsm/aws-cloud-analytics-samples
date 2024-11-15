@@ -1,0 +1,41 @@
+name: Deploy to Staging
+
+on:
+  push:
+    paths:
+      - 'instances/staging/**'  # Trigger only when files in the staging directory change
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.0  # Specify your Terraform version
+
+      - name: Terraform Init (Staging)
+        run: terraform init
+        working-directory: instances/staging
+
+      - name: Terraform Plan (Staging)
+        run: terraform plan -out=tfplan.binary
+        working-directory: instances/staging
+
+      - name: Await Manual Approval
+        if: github.ref == 'refs/heads/main'
+        run: echo "Awaiting approval for staging deployment."
+
+      - name: Terraform Apply (Staging)
+        if: github.ref == 'refs/heads/main'  # Only apply on main branch changes
+        run: terraform apply tfplan.binary
+        working-directory: instances/staging
