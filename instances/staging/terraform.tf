@@ -1,6 +1,6 @@
 # Terraform provider and backend configuration
 provider "aws" {
-  profile = "kz-dev-admin"
+  profile = "dev-admin"
   region  = "eu-west-1"
 }
 
