@@ -22,12 +22,12 @@ module "vpc" {
   version = "5.0.0"
 
   name = "${local.name}-lakehouse-vpc"
-  #4,091 usable IP addresses in a /20 network
+  #4,096 -(5 aws-reserved) reusable IP addresses in a /20 network
   cidr = "10.0.0.0/20"
-  azs             = ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
-  # use the > cidrsubnet("10.0.0.0/20", 3,n) for an even split across 3 az's
-  public_subnets  = ["10.0.2.0/23", "10.0.4.0/23", "10.0.6.0/23"]
-  private_subnets = ["10.0.8.0/23", "10.0.10.0/23", "10.0.12.0/23"]
+  azs             = ["eu-west-1a", "eu-west-1b"]
+  # use the > cidrsubnet("10.0.0.0/20", 2,n) for an even split across 2 az's
+  public_subnets  = ["10.0.0.0/22", "10.0.4.0/22"]
+  private_subnets = ["10.0.8.0/22", "10.0.12.0/22"]
 
   #  enable_nat_gateway = true
   #  enable_vpn_gateway = true
@@ -61,7 +61,7 @@ module "bastion_host" {
   ubuntu_version = "24.04"
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.public_subnets
-  #
+  # name, shell, ssh_authorized_keys
   users                         = []
   # list of additional sg's: [redshift, airflow, etc.]
   additional_security_group_ids = [module.redshift.aws_redshiftserverless_server_sg]
@@ -70,4 +70,60 @@ module "bastion_host" {
   tags                          = merge(
     local.tags, { Terraform = "true" }
   )
+}
+
+module "mwaa" {
+  version = "0.0.6"
+  source = "aws-ia/mwaa/aws"
+
+  name = "${local.name}-airflow"
+  airflow_version      = "2.9.2"
+  environment_class    = "mw1.small"
+  vpc_id                = module.vpc.vpc_id
+  private_subnet_ids    = module.vpc.private_subnets
+  kms_key               = module.base.kms_key_arn
+  min_workers           = 1
+  max_workers           = 3
+  webserver_access_mode = "PUBLIC_ONLY" # Default PRIVATE_ONLY for production environments
+  weekly_maintenance_window_start = "SUN:07:00"
+  iam_role_additional_policies = {
+    # "additional-policy-1" = "<ENTER_POLICY_ARN1>"
+    # "additional-policy-2" = "<ENTER_POLICY_ARN2>"
+  }
+
+  logging_configuration = {
+    dag_processing_logs = {
+      enabled   = true
+      log_level = "INFO"
+    }
+
+    scheduler_logs = {
+      enabled   = true
+      log_level = "INFO"
+    }
+
+    task_logs = {
+      enabled   = true
+      log_level = "INFO"
+    }
+
+    webserver_logs = {
+      enabled   = true
+      log_level = "INFO"
+    }
+
+    worker_logs = {
+      enabled   = true
+      log_level = "INFO"
+    }
+  }
+
+  airflow_configuration_options = {
+    "core.load_default_connections" = "false"
+    "core.load_examples"            = "false"
+    "webserver.dag_default_view"    = "tree"
+    "webserver.dag_orientation"     = "TB"
+    "logging.logging_level"         = "INFO"
+  }
+  tags = local.tags
 }
