@@ -132,8 +132,8 @@ module "dbt" {
   source     = "../../components/dbt"
   aws_region = data.aws_region.this.name
   vpc_id     = module.vpc.vpc_id
-  cidr_block = module.vpc.vpc_cidr_block
-  subnets    = module.vpc.private_subnets
+  subnets    = module.vpc.public_subnets
+  vpc_cidr_block = module.vpc.vpc_cidr_block
   container_image = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.this.name}.amazonaws.com/dbt-core-redshift"
   tags = merge(
     local.tags, { app = "dbt" }

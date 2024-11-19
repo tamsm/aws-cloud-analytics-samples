@@ -39,22 +39,19 @@ resource "aws_redshiftserverless_endpoint_access" "serverless" {
 resource "aws_iam_role" "redshift-serverless-role" {
   name = "${var.app_name}-${var.app_environment}-redshift-serverless-role"
 
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": "sts:AssumeRole",
-      "Principal": {
-        "Service": "redshift.amazonaws.com"
-      },
-      "Effect": "Allow",
-      "Sid": ""
-    }
-  ]
-}
-EOF
-
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "allow-assume-${var.app_name}-${var.app_environment}-redshift-serverless-role"
+        Action    = "sts:AssumeRole"
+        Effect    = "Allow"
+        Principal = {
+          Service = "redshift.amazonaws.com"
+        }
+      }
+    ]
+  })
   tags = var.tags
 }
 
@@ -62,33 +59,73 @@ EOF
 resource "aws_iam_role_policy" "redshift-s3-full-access-policy" {
   name = "${var.app_name}-${var.app_environment}-redshift-serverless-role-s3-policy"
   role = aws_iam_role.redshift-serverless-role.id
-
-  policy = <<EOF
-{
-   "Version": "2012-10-17",
-   "Statement": [
-     {
-       "Effect": "Allow",
-       "Action": "s3:*",
-       "Resource": "*"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "s3:*"
+        Resource = "*"
       }
-   ]
-}
-EOF
+    ]
+  })
 }
 
 # Get the AmazonRedshiftAllCommandsFullAccess policy
-data "aws_iam_policy" "redshift-full-access-policy" {
+data "aws_iam_policy" "redshift_full_access_policy" {
   name = "AmazonRedshiftAllCommandsFullAccess"
 }
 
 # Attach the policy to the Redshift role
-resource "aws_iam_role_policy_attachment" "attach-s3" {
+resource "aws_iam_role_policy_attachment" "redshift_full_access_policy" {
   role       = aws_iam_role.redshift-serverless-role.name
-  policy_arn = data.aws_iam_policy.redshift-full-access-policy.arn
+  policy_arn = data.aws_iam_policy.redshift_full_access_policy.arn
+}
+# Initial role setup for rs data api, IAM auth for containers,
+# less password management, more temporary auth credentials => more security
+# Allow assume by ecs-tasks
+resource "aws_iam_role" "redshift_data_api_dbt_role" {
+  name = "${var.tags.stage}-${var.tags.instance}-dbt-admin"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action    = "sts:AssumeRole"
+        Effect    = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+      }
+    ]
+  })
 }
 
+resource "aws_iam_policy" "redshift_data_api_dbt_policy" {
+  name        = "${var.tags.stage}-${var.tags.instance}-dbt-policy"
+  description = "Policy for accessing Redshift Data API"
 
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "redshift:GetClusterCredentials",
+          "redshift-data:ExecuteStatement",
+          "redshift-data:GetStatementResult",
+          "redshift-data:DescribeStatement"
+        ]
+        Effect   = "Allow"
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "redshift_data_api_policy_attachment" {
+  role       = aws_iam_role.redshift_data_api_dbt_role.name
+  policy_arn = aws_iam_policy.redshift_data_api_dbt_policy.arn
+}
 
 #################
 # Security Groups

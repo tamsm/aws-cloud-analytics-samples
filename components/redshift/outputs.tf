@@ -51,3 +51,8 @@ output "aws_redshiftserverless_server_sg" {
 output "redshift_serverless_endpoint" {
   value = aws_redshiftserverless_endpoint_access.serverless.endpoint_name
 }
+
+output "redshift_data_api_dbt_role" {
+  description = "Name of redshift data api dbt role."
+  value       = aws_iam_role.redshift_data_api_dbt_role.name
+}
