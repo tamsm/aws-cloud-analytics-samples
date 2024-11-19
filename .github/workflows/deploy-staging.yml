@@ -3,8 +3,8 @@ name: Deploy to Staging
 on:
   workflow_dispatch:
   push:
-    paths:
-      - 'instances/staging/**'  # Trigger only when files in the staging directory change
+    branches:
+      - main  # Trigger only on push to the main branch (e.g., after merge)
 
 jobs:
   deploy-staging:
