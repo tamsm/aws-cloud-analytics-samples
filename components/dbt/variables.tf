@@ -39,3 +39,17 @@ variable "container_image" {
   type        = string
   description = "The ECR dbt image"
 }
+
+variable "dbt_project_dir" {
+  type        = string
+  description = "Path to dbt project directory, used for s3 upload"
+}
+variable "cluster_id" {
+  type        = string
+  description = "The cluster id"
+}
+variable "hostname" {
+  type        = string
+  description = "The cluster hostname"
+}
+

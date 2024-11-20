@@ -10,6 +10,7 @@ locals {
     app      = local.app
     name     = local.name
   }
+  dbt_project_dir = "../../analytics/dbt"
 }
 # Contains: KMS key
 module "base" {
@@ -24,10 +25,10 @@ module "vpc" {
   name = "${local.name}-lakehouse-vpc"
   #4,096 -(5 aws-reserved) reusable IP addresses in a /20 network
   cidr = "10.0.0.0/20"
-  azs             = ["eu-west-1a", "eu-west-1b"]
-  # use the > cidrsubnet("10.0.0.0/20", 2,n) for an even split across 2 az's
-  public_subnets  = ["10.0.0.0/22", "10.0.4.0/22"]
-  private_subnets = ["10.0.8.0/22", "10.0.12.0/22"]
+  azs             = ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
+  # use the > cidrsubnet("10.0.0.0/20", 3,n) for an even split across 3 az's
+  public_subnets  = ["10.0.2.0/23", "10.0.4.0/23", "10.0.6.0/23"]
+  private_subnets = ["10.0.8.0/23", "10.0.10.0/23", "10.0.12.0/23"]
 
   #  enable_nat_gateway = true
   #  enable_vpn_gateway = true
@@ -135,6 +136,9 @@ module "dbt" {
   subnets    = module.vpc.public_subnets
   vpc_cidr_block = module.vpc.vpc_cidr_block
   container_image = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.this.name}.amazonaws.com/dbt-core-redshift"
+  dbt_project_dir = local.dbt_project_dir
+  cluster_id  = module.redshift.redshift_serverless_cluster_id
+  hostname    = module.redshift.redshift_serverless_hostname
   tags = merge(
     local.tags, { app = "dbt" }
   )

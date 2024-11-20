@@ -1,0 +1,28 @@
+config:
+  send_anonymous_usage_stats: false
+  partial_parse: true
+  use_colors: true
+  printer_width: 4
+  write_json: true
+  warn_error: true
+
+default:
+  target: dev # this is the default target
+  outputs:
+    dev:
+      type: redshift
+      method: iam
+      region: "{{ env_var('AWS_REGION') }}"
+      iam_profile: "{{ env_var('IAM_PROFILE') }}"
+      cluster_id: "{{ env_var('CLUSTER_ID') }}"
+      host: "{{ env_var('DB_HOST') }}"
+      user: "{{ env_var('DBT_USER') }}"
+      dbname: dw
+      port: 5439
+      schema: public
+      autocommit: True
+      threads: 4
+      connect_timeout: 60 # default 10 seconds
+      sslmode: prefer
+      ra3_node: false
+      retries: 3

@@ -13,8 +13,14 @@ module "dbt_ecs" {
   # memory          = 512 # Minimal Fargate Memory (0.5 GB)
   essential       = true
   # TODO: figure out env or file injection
-  environment     = [{ "name" = "DBT_ENV_VAR", "value" = "some_value" }]
-  command = ["debug"]
+  environment     = [
+    { "name" = "AWS_REGION",  "value" = "${var.aws_region}" },
+    { "name" = "IAM_PROFILE", "value" = "${var.tags.stage}-${var.tags.instance}-dbt-core-task" },
+    { "name" = "CLUSTER_ID",  "value" = "${var.cluster_id}" },
+    { "name" = "DB_HOST",     "value" = "${var.hostname}" },
+    { "name" = "DBT_USER",    "value" = "admin" }
+  ]
+  command = ["dbt", "debug"]
 
   log_configuration = {
     logDriver = "awslogs"
@@ -170,4 +176,81 @@ resource "aws_vpc_security_group_egress_rule" "allow_outbound_5439" {
   from_port   = 5439
   to_port     = 5439
   ip_protocol = "tcp"
+}
+# TODO: split the dbt project to another repo, &introduce git  pull $dbt-project within the container
+# S3 bucket definition
+module "dbt_files_bucket" {
+  source      = "terraform-aws-modules/s3-bucket/aws"
+  version     = "4.0.0"
+  # S3 bucket name
+  bucket      = "${var.tags.stage}-${var.tags.instance}-dbt"
+  # Tags for the bucket
+  tags = var.tags
+  # Enable versioning for safety
+  versioning = {
+    enabled = true
+  }
+  # Make the bucket private
+}
+
+resource "aws_s3_object" "this" {
+  for_each = fileset(var.dbt_project_dir, "**/*")
+  bucket   = module.dbt_files_bucket.s3_bucket_id
+  key      = each.value
+  source   = "${var.dbt_project_dir}/${each.value}"
+  etag     = filemd5("${var.dbt_project_dir}/${each.value}")
+}
+
+resource "aws_iam_policy" "ecs_task_s3_access_policy" {
+  name        = "ecs_task_s3_access_policy"
+  description = "Policy for accessing S3 bucket with dbt files"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket"
+        ]
+        Effect   = "Allow"
+        Resource = [
+          module.dbt_files_bucket.s3_bucket_arn,
+          "${module.dbt_files_bucket.s3_bucket_arn}/*"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_task_s3_access_policy_attachment" {
+  role       = aws_iam_role.ecs_task_role.name
+  policy_arn = aws_iam_policy.ecs_task_s3_access_policy.arn
+}
+
+resource "aws_iam_policy" "dbt_redshift_iam_policy" {
+  name        = "dbt_redshift_iam_policy"
+  description = "Policy to allow dbt to access Redshift using IAM authentication"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "redshift:GetClusterCredentials",
+          "redshift:DescribeClusters",
+          "redshift-data:ExecuteStatement",
+          "redshift-data:GetStatementResult",
+          "redshift-data:DescribeStatement"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "dbt_redshift_iam_policy_attachment" {
+  role       = aws_iam_role.ecs_task_role.name
+  policy_arn = aws_iam_policy.dbt_redshift_iam_policy.arn
 }
